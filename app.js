@@ -189,7 +189,8 @@ function synthesize(s, f) {
 // samples/{string}-{fret}.m4a, keyed by position — never shared across
 // strings, so unisons keep their true recorded timbre. Requires serving over
 // http(s); on file:// the fetches fail and everything falls back to synth.
-const sampleCache = new Map(); // 's:f' -> AudioBuffer
+const sampleCache = new Map();    // 's:f' -> AudioBuffer
+const samplePromises = new Map(); // 's:f' -> Promise<AudioBuffer>
 let samplesLoaded = 0, samplesMissing = 0, prefetchStarted = false;
 
 function prefetchSamples() {
@@ -198,11 +199,13 @@ function prefetchSamples() {
   const ac = ensureCtx();
   for (let s = 0; s < 6; s++) {
     for (let f = 0; f <= NUM_FRETS; f++) {
-      fetch(`samples/${s}-${f}.m4a`)
+      const key = s + ':' + f;
+      const p = fetch(`samples/${s}-${f}.m4a`)
         .then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
         .then(ab => ac.decodeAudioData(ab))
-        .then(buf => { sampleCache.set(s + ':' + f, buf); samplesLoaded++; updateSampleStatus(); })
-        .catch(() => { samplesMissing++; updateSampleStatus(); });
+        .then(buf => { sampleCache.set(key, buf); samplesLoaded++; updateSampleStatus(); return buf; });
+      p.catch(() => { samplesMissing++; updateSampleStatus(); });
+      samplePromises.set(key, p);
     }
   }
 }
@@ -222,16 +225,34 @@ function updateSampleStatus() {
 }
 
 let activeSource = null;
-function playNote(s, f) {
+function startBuffer(buffer, source) {
   const ac = ensureCtx();
-  prefetchSamples();
-  const buffer = sampleCache.get(s + ':' + f) || synthesize(s, f);
   if (activeSource) { try { activeSource.stop(); } catch (e) { /* already stopped */ } }
   const src = ac.createBufferSource();
   src.buffer = buffer;
   src.connect(ac.destination);
   src.start();
   activeSource = src;
+  const el = document.getElementById('lastsource');
+  el.textContent = source === 'recorded' ? '♪ recorded' : '♪ SYNTH';
+  el.style.color = source === 'recorded' ? '#6f665a' : '#d9534f';
+}
+
+function playNote(s, f) {
+  ensureCtx();
+  prefetchSamples();
+  const key = s + ':' + f;
+  const cached = sampleCache.get(key);
+  if (cached) return startBuffer(cached, 'recorded');
+  const pending = samplePromises.get(key);
+  if (!pending) return startBuffer(synthesize(s, f), 'synth');
+  // Sample still downloading: wait briefly for the real thing rather than
+  // silently playing the synth; give up after 1.5s (offline / slow network).
+  let done = false;
+  const timer = setTimeout(() => { if (!done) { done = true; startBuffer(synthesize(s, f), 'synth'); } }, 1500);
+  pending.then(
+    buf => { if (!done) { done = true; clearTimeout(timer); startBuffer(buf, 'recorded'); } },
+    () => { if (!done) { done = true; clearTimeout(timer); startBuffer(synthesize(s, f), 'synth'); } });
 }
 
 // ---------------------------------------------------------------------------
