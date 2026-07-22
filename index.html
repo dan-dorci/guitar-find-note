@@ -43,17 +43,21 @@
   #status.good { border-left: 4px solid var(--good); }
   #status.bad { border-left: 4px solid var(--bad); }
 
-  #boardwrap { overflow-x: auto; padding-bottom: 6px; }
-  table { border-collapse: collapse; }
+  #topbar { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: 4px 0 8px; }
+  /* Vertical neck: strings are columns, frets are rows. Right margin leaves a
+     thumb rail so the page can be scrolled without touching the board. */
+  #boardwrap { max-width: 440px; margin: 0 auto; padding: 0 34px 12px 0; box-sizing: border-box; }
+  table { border-collapse: collapse; width: 100%; }
   td, th { padding: 0; }
-  th.fretnum { font-size: 10px; color: var(--dim); font-weight: normal; height: 16px; }
-  th.stringname { font-size: 12px; color: var(--dim); padding-right: 6px; width: 22px; text-align: right; }
-  td.fret { width: 46px; min-width: 46px; height: 44px; background: var(--wood);
-    border-right: 3px solid var(--fretwire); position: relative; cursor: pointer; }
-  td.fret.nut { border-right: 6px solid #c9bfae; background: var(--panel); }
-  td.fret .str { position: absolute; left: 0; right: 0; top: 50%; background: #b9a98a; pointer-events: none; }
+  th.stringname { font-size: 13px; color: var(--dim); font-weight: normal; height: 22px; width: 15%; }
+  th.fretnum { font-size: 11px; color: var(--dim); font-weight: normal; width: 26px;
+    text-align: right; padding-right: 7px; }
+  td.fret { height: 46px; background: var(--wood);
+    border-bottom: 3px solid var(--fretwire); position: relative; cursor: pointer; }
+  td.fret.nut { border-bottom: 6px solid #c9bfae; background: var(--panel); }
+  td.fret .str { position: absolute; top: 0; bottom: 0; left: 50%; background: #b9a98a; pointer-events: none; }
   td.fret .dot { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-    width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center;
+    width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center;
     justify-content: center; font-size: 11px; font-weight: 600; pointer-events: none; opacity: 0; }
   td.fret.candidate { background: #24344a; }
   td.fret.disabled { opacity: 0.35; cursor: default; }
@@ -69,6 +73,7 @@
 <body>
 <div id="app">
   <h1>Find That Note</h1>
+  <div id="topbar">
   <div class="modes">
     <button data-mode="explore" class="active">Explore</button>
     <button data-mode="pitch">Find the Pitch</button>
@@ -83,6 +88,7 @@
     <div id="score"></div>
   </div>
   <div id="status">Tap anywhere on the fretboard to hear notes. Pick a mode when ready.</div>
+  </div>
   <div id="boardwrap"></div>
   <div id="hint"></div>
   <div id="samplestatus" style="font-size:11px;color:#6f665a;margin-top:6px;"></div>

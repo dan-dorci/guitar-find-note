@@ -398,33 +398,36 @@ function onCellTap(s, f) {
 function buildBoard() {
   const wrap = document.getElementById('boardwrap');
   const table = document.createElement('table');
+  // Vertical neck: nut at top, frets downward. Columns left-to-right are
+  // low E .. high e (chord-chart orientation), i.e. string index 5 .. 0.
+  const colOrder = [5, 4, 3, 2, 1, 0];
 
   const head = document.createElement('tr');
   head.appendChild(document.createElement('th'));
-  for (let f = 0; f <= NUM_FRETS; f++) {
+  for (const s of colOrder) {
     const th = document.createElement('th');
-    th.className = 'fretnum';
-    th.textContent = f;
+    th.className = 'stringname';
+    th.textContent = STRINGS[s].name;
     head.appendChild(th);
   }
   table.appendChild(head);
 
   const inlayFrets = [3, 5, 7, 9, 12, 15, 17, 19];
-  for (let s = 0; s < 6; s++) {
+  for (let s = 0; s < 6; s++) cells[s] = [];
+  for (let f = 0; f <= NUM_FRETS; f++) {
     const tr = document.createElement('tr');
     const label = document.createElement('th');
-    label.className = 'stringname';
-    label.textContent = STRINGS[s].name;
+    label.className = 'fretnum';
+    label.textContent = f;
     tr.appendChild(label);
-    cells[s] = [];
-    for (let f = 0; f <= NUM_FRETS; f++) {
+    for (const s of colOrder) {
       const td = document.createElement('td');
       td.className = 'fret' + (f === 0 ? ' nut' : '');
       const wire = document.createElement('div');
       wire.className = 'str';
-      wire.style.height = (1 + s * 0.5) + 'px'; // thicker lines for lower strings
+      wire.style.width = (1 + s * 0.5) + 'px'; // thicker lines for lower strings
       td.appendChild(wire);
-      if (s === 2 && f !== 0 && inlayFrets.includes(f)) {
+      if (s === 3 && f !== 0 && inlayFrets.includes(f)) {
         const inlay = document.createElement('div');
         inlay.className = 'inlay';
         td.appendChild(inlay);
@@ -432,7 +435,9 @@ function buildBoard() {
       const dot = document.createElement('div');
       dot.className = 'dot';
       td.appendChild(dot);
-      td.addEventListener('pointerdown', () => onCellTap(s, f));
+      // click, not pointerdown: browsers suppress click for scroll gestures,
+      // so dragging the board to scroll no longer plays notes.
+      td.addEventListener('click', () => onCellTap(s, f));
       cells[s][f] = td;
       tr.appendChild(td);
     }
