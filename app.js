@@ -276,16 +276,21 @@ function playNote(s, f) {
 // ---------------------------------------------------------------------------
 // Game state
 // ---------------------------------------------------------------------------
-let mode = 'explore';        // explore | pitch | exact | duel
-let phase = 'idle';          // idle | listening | review
+let mode = 'explore';        // explore | pitch | exact | duel | custom
+let phase = 'idle';          // idle | edit | listening | review
 let target = null;           // [string, fret]
-let candidates = [];         // active cells in duel mode
+let candidates = [];         // active cells in duel/custom rounds
 let correct = 0, total = 0, streak = 0;
+
+// Custom practice set: positions the beginner has chosen to drill.
+const customSet = new Set(JSON.parse(localStorage.getItem('customSet') || '[]'));
+if (customSet.size === 0) { customSet.add('5:0'); customSet.add('4:0'); } // open E + open A starter
 
 const statusEl = document.getElementById('status');
 const scoreEl = document.getElementById('score');
 const playBtn = document.getElementById('playBtn');
 const nextBtn = document.getElementById('nextBtn');
+const setBtn = document.getElementById('setBtn');
 const hintEl = document.getElementById('hint');
 const cells = []; // cells[s][f] -> td
 
@@ -294,6 +299,7 @@ const HINTS = {
   pitch: 'A note plays. Tap ANY position with that pitch — any string counts. Trains pitch → fretboard mapping.',
   exact: 'A note plays. Tap the EXACT position it was played at. Same pitch on the wrong string is a miss — listen for the timbre.',
   duel: 'The core exercise: one pitch, several possible positions (highlighted). Which one did you just hear?',
+  custom: 'Your own drill: tap positions to include them (highlighted), then Start. The mystery note is drawn only from your set. Great for beginners — try just the open strings first.',
 };
 
 function setStatus(msg, cls) {
@@ -311,12 +317,48 @@ function clearBoardMarks() {
   }
 }
 
+function enterSetEditor() {
+  clearBoardMarks();
+  phase = 'edit';
+  target = null;
+  playBtn.disabled = true;
+  nextBtn.disabled = true;
+  setBtn.hidden = false;
+  setBtn.textContent = 'Start ▸';
+  for (const key of customSet) {
+    const [s, f] = key.split(':').map(Number);
+    cells[s][f].classList.add('candidate');
+  }
+  updateSetEditor();
+}
+
+function updateSetEditor() {
+  setBtn.disabled = customSet.size < 2;
+  setStatus(`Building your set: ${customSet.size} position${customSet.size === 1 ? '' : 's'} selected. ` +
+    (customSet.size < 2 ? 'Pick at least 2, then Start.' : 'Tap Start when ready.'));
+  localStorage.setItem('customSet', JSON.stringify([...customSet]));
+}
+
 function newRound() {
   clearBoardMarks();
   phase = 'listening';
   nextBtn.disabled = true;
   playBtn.disabled = false;
 
+  if (mode === 'custom') {
+    setBtn.textContent = '✎ Edit set';
+    setBtn.disabled = false;
+    candidates = [...customSet].map(k => k.split(':').map(Number));
+    target = candidates[Math.floor(Math.random() * candidates.length)];
+    for (const row of cells) for (const td of row) td.classList.add('disabled');
+    for (const [s, f] of candidates) {
+      cells[s][f].classList.remove('disabled');
+      cells[s][f].classList.add('candidate');
+    }
+    setStatus(`Listen… which of your ${candidates.length} positions is playing?`);
+    playNote(target[0], target[1]);
+    return;
+  }
   if (mode === 'duel') {
     // Pick a pitch with at least 2 positions in range, then one position of it.
     let midi, positions;
@@ -383,8 +425,22 @@ function onCellTap(s, f) {
     setStatus(`${posLabel(s, f)} — ${noteName(midiAt(s, f))}`);
     return;
   }
+  if (phase === 'edit') {
+    const key = s + ':' + f;
+    if (customSet.has(key)) {
+      customSet.delete(key);
+      cells[s][f].classList.remove('candidate');
+    } else {
+      customSet.add(key);
+      cells[s][f].classList.add('candidate');
+      playNote(s, f); // hear what you're adding
+    }
+    updateSetEditor();
+    return;
+  }
   if (phase === 'listening') {
-    if (mode === 'duel' && !candidates.some(([cs, cf]) => cs === s && cf === f)) return;
+    if ((mode === 'duel' || mode === 'custom') &&
+        !candidates.some(([cs, cf]) => cs === s && cf === f)) return;
     playNote(s, f); // hear your answer as feedback
     answer(s, f);
   } else if (phase === 'review') {
@@ -455,11 +511,14 @@ document.querySelectorAll('.modes button').forEach(btn => {
     hintEl.textContent = HINTS[mode];
     updateScore();
     clearBoardMarks();
+    setBtn.hidden = mode !== 'custom';
     if (mode === 'explore') {
       phase = 'idle';
       playBtn.disabled = true;
       nextBtn.disabled = true;
       setStatus('Free play — tap any position to hear it.');
+    } else if (mode === 'custom') {
+      enterSetEditor();
     } else {
       newRound();
     }
@@ -467,9 +526,13 @@ document.querySelectorAll('.modes button').forEach(btn => {
 });
 
 playBtn.addEventListener('click', () => {
-  if (target && phase !== 'idle') playNote(target[0], target[1]);
+  if (target && (phase === 'listening' || phase === 'review')) playNote(target[0], target[1]);
 });
 nextBtn.addEventListener('click', newRound);
+setBtn.addEventListener('click', () => {
+  if (phase === 'edit') { if (customSet.size >= 2) newRound(); }
+  else enterSetEditor();
+});
 
 const guitarSel = document.getElementById('guitarsel');
 for (const g of GUITAR_MODELS) {
@@ -485,7 +548,7 @@ for (const g of GUITAR_MODELS) {
     if (ctx) prefetchSamples(); // already unlocked -> start loading this bank now
     updateSampleStatus();
     // Replay the current target on the new guitar for instant comparison.
-    if (target && phase !== 'idle') playNote(target[0], target[1]);
+    if (target && (phase === 'listening' || phase === 'review')) playNote(target[0], target[1]);
   });
   guitarSel.appendChild(btn);
 }

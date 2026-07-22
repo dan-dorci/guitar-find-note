@@ -4,7 +4,8 @@ Guitar ear-training web app: hear a note, find it on the fretboard — including
 telling apart the *same pitch* played at different positions (e.g. open high e
 vs. D string fret 14) by timbre alone.
 
-Modes: Explore (free play), Find the Pitch, Exact Spot, Unison Duel.
+Modes: Explore (free play), Find the Pitch, Exact Spot, Unison Duel,
+and My Set (drill a custom subset of positions — e.g. just the open strings).
 
 ## Audio credits and license
 
