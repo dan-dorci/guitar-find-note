@@ -8,8 +8,8 @@ Modes: Explore (free play), Find the Pitch, Exact Spot, Unison Duel.
 
 ## Audio credits and license
 
-The per-(string, fret) note recordings in `samples/` are excerpts of a Fender
-Stratocaster from the [IDMT-SMT-Guitar dataset](https://zenodo.org/record/7544110)
+The per-(string, fret) note recordings in `samples/` are excerpts of three electric
+guitars (Fender Stratocaster, Gibson Les Paul, Aristides 010) from the [IDMT-SMT-Guitar dataset](https://zenodo.org/record/7544110)
 by Christian Kehling et al., Fraunhofer IDMT, licensed under
 [CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/).
 Changes made: individual notes were excerpted verbatim at the note boundaries

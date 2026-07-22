@@ -189,38 +189,55 @@ function synthesize(s, f) {
 // samples/{string}-{fret}.m4a, keyed by position — never shared across
 // strings, so unisons keep their true recorded timbre. Requires serving over
 // http(s); on file:// the fetches fail and everything falls back to synth.
-const sampleCache = new Map();    // 's:f' -> AudioBuffer
-const samplePromises = new Map(); // 's:f' -> Promise<AudioBuffer>
-let samplesLoaded = 0, samplesMissing = 0, prefetchStarted = false;
+const GUITAR_MODELS = [
+  { id: 'FS', label: 'Strat', desc: 'Fender Stratocaster' },
+  { id: 'LP', label: 'Les Paul', desc: 'Gibson Les Paul' },
+  { id: 'AR', label: 'Aristides', desc: 'Aristides 010' },
+];
+let guitarId = localStorage.getItem('guitarId') || 'FS';
+const banks = new Map(); // guitar id -> {cache, promises, loaded, missing, started}
+
+function bank(id) {
+  if (!banks.has(id)) {
+    banks.set(id, { cache: new Map(), promises: new Map(), loaded: 0, missing: 0, started: false });
+  }
+  return banks.get(id);
+}
 
 function prefetchSamples() {
-  if (prefetchStarted) return;
-  prefetchStarted = true;
+  const b = bank(guitarId);
+  if (b.started) return;
+  b.started = true;
   const ac = ensureCtx();
+  const id = guitarId;
   for (let s = 0; s < 6; s++) {
     for (let f = 0; f <= NUM_FRETS; f++) {
       const key = s + ':' + f;
-      const p = fetch(`samples/${s}-${f}.m4a`)
+      const p = fetch(`samples/${id}/${s}-${f}.m4a`)
         .then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
         .then(ab => ac.decodeAudioData(ab))
-        .then(buf => { sampleCache.set(key, buf); samplesLoaded++; updateSampleStatus(); return buf; });
-      p.catch(() => { samplesMissing++; updateSampleStatus(); });
-      samplePromises.set(key, p);
+        .then(buf => { b.cache.set(key, buf); b.loaded++; updateSampleStatus(); return buf; });
+      p.catch(() => { b.missing++; updateSampleStatus(); });
+      b.promises.set(key, p);
     }
   }
 }
 
 function updateSampleStatus() {
   const el = document.getElementById('samplestatus');
+  const b = bank(guitarId);
+  const desc = GUITAR_MODELS.find(g => g.id === guitarId).desc;
   const totalCells = 6 * (NUM_FRETS + 1);
-  if (samplesLoaded === 0 && samplesMissing >= totalCells) {
+  if (!b.started) {
+    el.textContent = `Sound: ${desc} (loads on first tap)`;
+  } else if (b.loaded === 0 && b.missing >= totalCells) {
     el.textContent = 'Sound: synthesized (no recorded samples found — serve over http with samples/ present)';
-  } else if (samplesLoaded + samplesMissing < totalCells) {
-    el.textContent = `Sound: loading recorded samples… ${samplesLoaded}/${totalCells}`;
+  } else if (b.loaded + b.missing < totalCells) {
+    el.textContent = `Sound: loading ${desc} samples… ${b.loaded}/${totalCells}`;
   } else {
-    el.textContent = samplesMissing === 0
-      ? 'Sound: real recorded guitar (IDMT-SMT-Guitar dataset)'
-      : `Sound: recorded guitar for ${samplesLoaded} positions, synth for ${samplesMissing}`;
+    el.textContent = b.missing === 0
+      ? `Sound: ${desc}, real recording (IDMT-SMT-Guitar dataset)`
+      : `Sound: ${desc} for ${b.loaded} positions, synth for ${b.missing}`;
   }
 }
 
@@ -242,9 +259,10 @@ function playNote(s, f) {
   ensureCtx();
   prefetchSamples();
   const key = s + ':' + f;
-  const cached = sampleCache.get(key);
+  const b = bank(guitarId);
+  const cached = b.cache.get(key);
   if (cached) return startBuffer(cached, 'recorded');
-  const pending = samplePromises.get(key);
+  const pending = b.promises.get(key);
   if (!pending) return startBuffer(synthesize(s, f), 'synth');
   // Sample still downloading: wait briefly for the real thing rather than
   // silently playing the synth; give up after 1.5s (offline / slow network).
@@ -448,7 +466,27 @@ playBtn.addEventListener('click', () => {
 });
 nextBtn.addEventListener('click', newRound);
 
+const guitarSel = document.getElementById('guitarsel');
+for (const g of GUITAR_MODELS) {
+  const btn = document.createElement('button');
+  btn.textContent = g.label;
+  btn.title = g.desc;
+  btn.classList.toggle('active', g.id === guitarId);
+  btn.addEventListener('click', () => {
+    guitarId = g.id;
+    localStorage.setItem('guitarId', guitarId);
+    guitarSel.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    if (ctx) prefetchSamples(); // already unlocked -> start loading this bank now
+    updateSampleStatus();
+    // Replay the current target on the new guitar for instant comparison.
+    if (target && phase !== 'idle') playNote(target[0], target[1]);
+  });
+  guitarSel.appendChild(btn);
+}
+
 buildBoard();
 hintEl.textContent = HINTS.explore;
 playBtn.disabled = true;
 updateScore();
+updateSampleStatus();

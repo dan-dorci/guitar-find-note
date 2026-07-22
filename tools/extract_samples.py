@@ -2,7 +2,7 @@ import re, wave, struct, os, subprocess, sys
 
 GUITAR = sys.argv[1] if len(sys.argv) > 1 else 'FS'
 BASE = '/tmp/IDMT-SMT-GUITAR_V2/dataset2'
-OUT = '/Users/dandorci/guitar-find-note/samples'
+OUT = f'/Users/dandorci/guitar-find-note/samples/{GUITAR}'
 # app row -> dataset file suffix (row 0 = high e)
 ROWS = ['E1', 'B', 'G', 'D', 'A', 'E']
 NUM_FRETS = 15
