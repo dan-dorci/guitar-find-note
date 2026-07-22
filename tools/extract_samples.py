@@ -5,7 +5,7 @@ BASE = '/tmp/IDMT-SMT-GUITAR_V2/dataset2'
 OUT = f'/Users/dandorci/guitar-find-note/samples/{GUITAR}'
 # app row -> dataset file suffix (row 0 = high e)
 ROWS = ['E1', 'B', 'G', 'D', 'A', 'E']
-NUM_FRETS = 15
+NUM_FRETS = 20
 
 os.makedirs(OUT, exist_ok=True)
 made = 0

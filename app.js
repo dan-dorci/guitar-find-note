@@ -18,7 +18,7 @@ const STRINGS = [
   { name: 'A', midi: 45, freq: 110.00, excitationDamp: 0.68, loopDamp: 0.42, sustain: 3.5, dispStages: 3 },
   { name: 'E', midi: 40, freq: 82.41,  excitationDamp: 0.72, loopDamp: 0.46, sustain: 3.6, dispStages: 4 },
 ];
-const NUM_FRETS = 15; // includes your open-e vs D-14 example
+const NUM_FRETS = 20; // full range of the dataset recordings
 const SCALE_M = 0.648;          // 25.5" scale length
 const PLUCK_FROM_BRIDGE = 0.13; // metres; fixed hand position near the bridge
 const DISP_A = 0.55;            // allpass coefficient for stiffness dispersion
@@ -409,7 +409,7 @@ function buildBoard() {
   }
   table.appendChild(head);
 
-  const inlayFrets = [3, 5, 7, 9, 12, 15];
+  const inlayFrets = [3, 5, 7, 9, 12, 15, 17, 19];
   for (let s = 0; s < 6; s++) {
     const tr = document.createElement('tr');
     const label = document.createElement('th');
