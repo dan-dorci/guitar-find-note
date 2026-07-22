@@ -302,6 +302,38 @@ const HINTS = {
   custom: 'Your own drill: tap positions to include them (highlighted), then Start. The mystery note is drawn only from your set. Great for beginners — try just the open strings first.',
 };
 
+// Recency-penalized random pick: uniform draws repeat often (a 2-item set
+// repeats 50% of rounds), which feels broken in a drill. Each position keeps a
+// "heat" that jumps when it's chosen and decays each round; selection weight
+// is 1/(floor + heat). Tuned by simulation: 2-item sets repeat ~29% of rounds
+// (lower would approach a predictable alternation), 5-item sets ~3%.
+const HEAT_ADD = 4, HEAT_DECAY = 0.45, HEAT_FLOOR = 0.08;
+const recentHeat = new Map(); // 's:f' -> heat
+function decayHeat() {
+  for (const [k, v] of recentHeat) {
+    const nv = v * HEAT_DECAY;
+    if (nv < 0.02) recentHeat.delete(k); else recentHeat.set(k, nv);
+  }
+}
+function addHeat(key, amount) { recentHeat.set(key, (recentHeat.get(key) || 0) + amount); }
+function pickWeighted(cands) {
+  decayHeat();
+  const weights = cands.map(([s, f]) => 1 / (HEAT_FLOOR + (recentHeat.get(s + ':' + f) || 0)));
+  let r = Math.random() * weights.reduce((a, b) => a + b, 0);
+  let chosen = cands[cands.length - 1];
+  for (let i = 0; i < cands.length; i++) {
+    r -= weights[i];
+    if (r <= 0) { chosen = cands[i]; break; }
+  }
+  addHeat(chosen[0] + ':' + chosen[1], HEAT_ADD);
+  return chosen;
+}
+function allPositions() {
+  const out = [];
+  for (let s = 0; s < 6; s++) for (let f = 0; f <= NUM_FRETS; f++) out.push([s, f]);
+  return out;
+}
+
 function setStatus(msg, cls) {
   statusEl.textContent = msg;
   statusEl.className = cls || '';
@@ -349,7 +381,7 @@ function newRound() {
     setBtn.textContent = '✎ Edit set';
     setBtn.disabled = false;
     candidates = [...customSet].map(k => k.split(':').map(Number));
-    target = candidates[Math.floor(Math.random() * candidates.length)];
+    target = pickWeighted(candidates);
     for (const row of cells) for (const td of row) td.classList.add('disabled');
     for (const [s, f] of candidates) {
       cells[s][f].classList.remove('disabled');
@@ -360,16 +392,16 @@ function newRound() {
     return;
   }
   if (mode === 'duel') {
-    // Pick a pitch with at least 2 positions in range, then one position of it.
-    let midi, positions;
-    do {
-      const s = Math.floor(Math.random() * 6);
-      const f = Math.floor(Math.random() * (NUM_FRETS + 1));
-      midi = midiAt(s, f);
-      positions = unisonPositions(midi);
-    } while (positions.length < 2);
-    candidates = positions;
-    target = positions[Math.floor(Math.random() * positions.length)];
+    // Pick a position whose pitch has at least 2 spots; it becomes the target
+    // and its unison set the candidates. Groupmates get partial heat so the
+    // same pitch doesn't come straight back via a sibling position.
+    const eligible = allPositions().filter(([s, f]) => unisonPositions(midiAt(s, f)).length >= 2);
+    target = pickWeighted(eligible);
+    const midi = midiAt(target[0], target[1]);
+    candidates = unisonPositions(midi);
+    for (const [s, f] of candidates) {
+      if (s !== target[0] || f !== target[1]) addHeat(s + ':' + f, HEAT_ADD * 0.4);
+    }
     for (const row of cells) for (const td of row) td.classList.add('disabled');
     for (const [s, f] of candidates) {
       cells[s][f].classList.remove('disabled');
@@ -378,9 +410,7 @@ function newRound() {
     setStatus(`This pitch (${noteName(midi)}) lives at ${candidates.length} highlighted spots. Which one is playing?`);
   } else {
     candidates = [];
-    const s = Math.floor(Math.random() * 6);
-    const f = Math.floor(Math.random() * (NUM_FRETS + 1));
-    target = [s, f];
+    target = pickWeighted(allPositions());
     setStatus(mode === 'pitch'
       ? 'Listen… tap any position that matches this pitch.'
       : 'Listen… tap the exact position this was played at.');
