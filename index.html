@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Find That Note</title>
+<style>
+  :root {
+    --bg: #14100c;
+    --panel: #201a14;
+    --wood: #2e2318;
+    --fretwire: #6b6257;
+    --text: #e8e0d4;
+    --dim: #9a8f80;
+    --accent: #e8a33d;
+    --good: #4caf6e;
+    --bad: #d9534f;
+    --candidate: #3d6ea5;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    touch-action: manipulation; }
+  #app { max-width: 900px; margin: 0 auto; padding: 10px; }
+  h1 { font-size: 18px; margin: 4px 0 10px; color: var(--accent); }
+
+  .modes { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .modes button { flex: 1; min-width: 90px; padding: 10px 6px; border-radius: 8px;
+    border: 1px solid #3a3128; background: var(--panel); color: var(--dim);
+    font-size: 13px; cursor: pointer; }
+  .modes button.active { background: var(--accent); color: #1a1206; border-color: var(--accent); font-weight: 600; }
+
+  .controls { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+  .controls button { padding: 10px 16px; border-radius: 8px; border: none;
+    background: #4a3a24; color: var(--text); font-size: 15px; cursor: pointer; }
+  .controls button:disabled { opacity: 0.35; }
+  #score { margin-left: auto; font-size: 14px; color: var(--dim); white-space: nowrap; }
+  #score b { color: var(--text); }
+
+  #status { min-height: 44px; padding: 8px 10px; border-radius: 8px; background: var(--panel);
+    font-size: 14px; line-height: 1.35; margin-bottom: 10px; }
+  #status.good { border-left: 4px solid var(--good); }
+  #status.bad { border-left: 4px solid var(--bad); }
+
+  #boardwrap { overflow-x: auto; padding-bottom: 6px; }
+  table { border-collapse: collapse; }
+  td, th { padding: 0; }
+  th.fretnum { font-size: 10px; color: var(--dim); font-weight: normal; height: 16px; }
+  th.stringname { font-size: 12px; color: var(--dim); padding-right: 6px; width: 22px; text-align: right; }
+  td.fret { width: 46px; min-width: 46px; height: 44px; background: var(--wood);
+    border-right: 3px solid var(--fretwire); position: relative; cursor: pointer; }
+  td.fret.nut { border-right: 6px solid #c9bfae; background: var(--panel); }
+  td.fret .str { position: absolute; left: 0; right: 0; top: 50%; background: #b9a98a; pointer-events: none; }
+  td.fret .dot { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center;
+    justify-content: center; font-size: 11px; font-weight: 600; pointer-events: none; opacity: 0; }
+  td.fret.candidate { background: #24344a; }
+  td.fret.disabled { opacity: 0.35; cursor: default; }
+  td.fret.correct .dot { opacity: 1; background: var(--good); color: #08130c; }
+  td.fret.wrong .dot { opacity: 1; background: var(--bad); color: #1c0908; }
+  td.fret.played .dot { opacity: 1; background: var(--accent); color: #1a1206; }
+  .inlay { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: 8px; height: 8px; border-radius: 50%; background: #55483a; pointer-events: none; }
+
+  #hint { font-size: 12px; color: var(--dim); margin-top: 8px; line-height: 1.4; }
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>Find That Note</h1>
+  <div class="modes">
+    <button data-mode="explore" class="active">Explore</button>
+    <button data-mode="pitch">Find the Pitch</button>
+    <button data-mode="exact">Exact Spot</button>
+    <button data-mode="duel">Unison Duel</button>
+  </div>
+  <div class="controls">
+    <button id="playBtn">▶ Play note</button>
+    <button id="nextBtn" disabled>Next ▸</button>
+    <div id="score"></div>
+  </div>
+  <div id="status">Tap anywhere on the fretboard to hear notes. Pick a mode when ready.</div>
+  <div id="boardwrap"></div>
+  <div id="hint"></div>
+  <div id="samplestatus" style="font-size:11px;color:#6f665a;margin-top:6px;"></div>
+  <div style="font-size:11px;color:#6f665a;margin-top:2px;">Recorded notes: Fender Stratocaster from the IDMT-SMT-Guitar dataset (Kehling et&nbsp;al., Fraunhofer IDMT), CC&nbsp;BY-NC-ND&nbsp;4.0 — personal use.</div>
+</div>
+<script src="app.js"></script>
+</body>
+</html>
